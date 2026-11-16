@@ -196,12 +196,17 @@ const optionLines = (u, mark) => {
     (o, i) => `${LETTERS[i]}. ${o}${mark && LETTERS[i] === u.recommended ? " (권장)" : ""}`,
   )
 }
+const koDate = (d) => {
+  const [, m, day] = d.split("-").map(Number)
+  return `${m}월 ${day}일`
+}
 // 기획자에게 그대로 붙여 넣는 문구. 근거와 영향 TC 같은 작성자용 정보는 넣지 않는다.
 const plannerText = (u) =>
   [
     `[${u.where ?? u.frame ?? ""}] ${u.ask}`,
     ...optionLines(u, false),
-    `${u.deadline ? `${u.deadline}까지 ` : ""}답이 없으면 ${u.recommended}(으)로 TC 를 작성하겠습니다. (${u.id})`,
+    // 조건을 건 통보("~까지 답이 없으면 ~하겠다")는 압박처럼 읽힌다. 먼저 하는 일을 앞에 두고 기한은 부탁으로 쓴다
+    `우선 ${u.recommended} 기준으로 TC를 작성해 두고, 답을 주시면 그에 맞춰 고치겠습니다.${u.deadline ? ` 가능하면 ${koDate(u.deadline)}까지 부탁드립니다.` : ""} (${u.id})`,
   ].join("\n")
 
 const itemSheet = wb.addWorksheet("미정의 항목")
