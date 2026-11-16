@@ -1,0 +1,5 @@
+node_modules/
+# 실행 결과·기획서 원본은 올리지 않는다
+*.xlsx
+**/snapshot/
+*.pdf

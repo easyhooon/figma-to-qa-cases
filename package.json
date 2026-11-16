@@ -1,0 +1,14 @@
+{
+  "name": "figma-to-qa-cases",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Figma 기획서 → 기획 공백 질문 + QA 테스트 케이스 엑셀 (Claude Code 플러그인)",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "exceljs": "4.4.0"
+  }
+}

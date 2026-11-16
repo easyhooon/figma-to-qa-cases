@@ -1,0 +1,6 @@
+{
+  "name": "figma-to-qa-cases",
+  "version": "0.1.0",
+  "description": "Figma 기획서에서 기획 공백을 권장값이 붙은 질문으로 뽑고, 가정을 표시한 QA 테스트 케이스 엑셀을 만든다.",
+  "author": { "name": "easyhooon" }
+}

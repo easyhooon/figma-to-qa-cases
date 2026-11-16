@@ -1,0 +1,16 @@
+{
+  "name": "figma-to-qa-cases",
+  "owner": {
+    "name": "easyhooon"
+  },
+  "metadata": {
+    "description": "Figma 기획서 → 기획 공백 질문 + QA 테스트 케이스 엑셀"
+  },
+  "plugins": [
+    {
+      "name": "figma-to-qa-cases",
+      "source": "./",
+      "description": "Figma 기획서에서 기획 공백 질문과 QA 테스트 케이스 엑셀을 만든다."
+    }
+  ]
+}
