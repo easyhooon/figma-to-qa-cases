@@ -23,8 +23,6 @@ Claude Code 안에서:
 /plugin install figma-to-qa-cases --marketplace easyhooon/figma-to-qa-cases
 ```
 
-비공개 레포라 GitHub 에 이 레포 읽기 권한이 있어야 한다.
-
 로컬에서 바로 쓰려면 이 레포를 받은 뒤 `claude --plugin-dir <레포 경로>` 로 실행한다.
 
 필요한 것
