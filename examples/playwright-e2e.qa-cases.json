@@ -2,17 +2,62 @@
   "outputDir": "e2e/qa-cases",
   "decisions": "docs/qa/decisions.md",
   "sheetName": "QA 케이스",
+  "idScheme": "spec",
   "columns": [
-    { "header": "TC ID", "field": "id", "width": 12 },
-    { "header": "대분류", "field": "major", "width": 12 },
-    { "header": "중분류", "field": "minor", "width": 14 },
-    { "header": "화면/경로", "field": "screen", "width": 20 },
-    { "header": "사전조건", "field": "precondition", "width": 18 },
-    { "header": "테스트 절차", "field": "steps", "width": 40 },
-    { "header": "기대 결과", "field": "expected", "width": 40 },
-    { "header": "플랫폼", "field": "platform", "width": 8 },
-    { "header": "자동화 구분", "field": "blank", "width": 14 },
-    { "header": "자동화 spec", "field": "blank", "width": 20 },
-    { "header": "비고", "field": "notes", "width": 36 }
+    {
+      "header": "TC ID",
+      "field": "id",
+      "width": 12
+    },
+    {
+      "header": "대분류",
+      "field": "major",
+      "width": 12
+    },
+    {
+      "header": "중분류",
+      "field": "minor",
+      "width": 14
+    },
+    {
+      "header": "화면/경로",
+      "field": "screen",
+      "width": 20
+    },
+    {
+      "header": "사전조건",
+      "field": "precondition",
+      "width": 18
+    },
+    {
+      "header": "테스트 절차",
+      "field": "steps",
+      "width": 40
+    },
+    {
+      "header": "기대 결과",
+      "field": "expected",
+      "width": 40
+    },
+    {
+      "header": "플랫폼",
+      "field": "platform",
+      "width": 8
+    },
+    {
+      "header": "자동화 구분",
+      "field": "blank",
+      "width": 14
+    },
+    {
+      "header": "자동화 spec",
+      "field": "blank",
+      "width": 20
+    },
+    {
+      "header": "비고",
+      "field": "notes",
+      "width": 36
+    }
   ]
 }

@@ -27,6 +27,7 @@
  *       "figmaNode": "12:345", "assumptions": ["G-01"], "note": "" }
  *   ]
  * }
+ * 설정 idScheme 이 "spec" 이면 케이스마다 "screenId": "SCR-03", "annotation": 8 을 넣고 id 를 "SCR-03-08-01" 로 쓴다.
  */
 import { existsSync, readFileSync } from "node:fs";
 import ExcelJS from "exceljs";
@@ -61,11 +62,21 @@ const cases = draft.cases ?? [];
 const errors = [];
 const gapIds = new Set(gaps.map((g) => g.id));
 const seen = new Set();
+const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 for (const c of cases) {
   if (!c.id) errors.push(`id 없는 케이스: ${JSON.stringify(c).slice(0, 60)}`);
   if (seen.has(c.id)) errors.push(`TC ID 중복: ${c.id}`);
   seen.add(c.id);
   if (!c.expected) errors.push(`${c.id}: expected(기대 결과) 없음`);
+  // idScheme "spec": TC ID 를 기획서 화면 ID + 주석 번호로 만든다 (references/config.md)
+  if (config.idScheme === "spec") {
+    const ann = String(c.annotation ?? "").padStart(2, "0");
+    const re = new RegExp(`^${escapeRe(c.screenId ?? "")}-${ann}-\\d{2}$`);
+    if (!c.screenId || c.annotation == null)
+      errors.push(`${c.id}: idScheme "spec" 은 screenId, annotation 이 필요합니다`);
+    else if (!re.test(c.id))
+      errors.push(`${c.id}: TC ID 는 ${c.screenId}-${ann}-<두 자리 순번> 형식이어야 합니다`);
+  }
   for (const a of c.assumptions ?? []) {
     if (!gapIds.has(a))
       errors.push(`${c.id}: 없는 공백 ID ${a} 를 가정으로 참조`);

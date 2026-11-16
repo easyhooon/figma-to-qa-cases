@@ -7,6 +7,7 @@
   "outputDir": "qa-cases",
   "decisions": "qa-cases/decisions.md",
   "sheetName": "QA 케이스",
+  "idScheme": "spec",
   "columns": [
     { "header": "TC ID", "field": "id", "width": 12 },
     { "header": "대분류", "field": "major", "width": 12 },
@@ -26,11 +27,12 @@
 | `outputDir`  | `qa-cases`              | `draft.json`, 엑셀, 스냅샷 폴더가 생기는 곳                                                   |
 | `decisions`  | `qa-cases/decisions.md` | 결정 사전 경로                                                                                |
 | `sheetName`  | `QA 케이스`             | TC 시트 이름. 다음 단계 도구가 시트 이름으로 찾으면 맞춘다                                     |
+| `idScheme`   | `feature`               | TC ID 체계. `spec` 은 `<화면 ID>-<주석 번호>-<순번>`(예: `SCR-03-08-01`), `feature` 는 `<기능 약어>-<번호>`. `spec` 이면 케이스에 `screenId`, `annotation` 이 필요하고 스크립트가 형식을 검사한다 |
 | `columns`    | 위 예시                 | 엑셀 열 순서. 다음 단계 도구(테스트 코드 변환 등)가 읽는 템플릿과 같게 맞춘다                  |
 
 `columns[].field` 에 쓸 수 있는 값
 
-- 케이스 필드: `id`, `major`, `minor`, `screen`, `precondition`, `expected`, `platform`, `figmaNode`, `note`
+- 케이스 필드: `id`, `major`, `minor`, `screen`, `screenId`, `annotation`, `precondition`, `expected`, `platform`, `figmaNode`, `note`
 - `steps`: 절차 배열을 `1. …` 줄바꿈으로 합친 값
 - `notes`: `가정: G-01` + `Figma: <근거 위치>` + `note` 를 합친 값
 - `assumptions`: 가정 공백 ID 목록

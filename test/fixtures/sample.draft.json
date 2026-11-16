@@ -7,9 +7,9 @@
       "basis": "S-02 화면의 빈 상태", "deadline": "2026-11-18", "status": "open" }
   ],
   "cases": [
-    { "id": "SP-01", "major": "샘플", "minor": "목록", "screen": "S-01", "precondition": "로그인",
+    { "id": "S-01-01-01", "screenId": "S-01", "annotation": 1, "major": "샘플", "minor": "목록", "screen": "S-01", "precondition": "로그인",
       "steps": ["목록 진입"], "expected": "'진행 중' 제목 노출", "figmaNode": "S-01 #1" },
-    { "id": "SP-02", "major": "샘플", "minor": "목록", "screen": "S-01", "precondition": "데이터 0건",
+    { "id": "S-01-03-01", "screenId": "S-01", "annotation": 3, "major": "샘플", "minor": "목록", "screen": "S-01", "precondition": "데이터 0건",
       "steps": ["목록 진입"], "expected": "빈 화면 안내 문구 노출", "figmaNode": "S-01 #3", "assumptions": ["G-01"] }
   ]
 }

@@ -28,7 +28,7 @@ test("기본 열로 QA 케이스와 기획 확인 시트를 만든다", async ()
   assert.match(String(cases[2].at(-1)), /가정: G-01/)
   const gaps = await readSheet(out, "기획 확인")
   assert.equal(gaps[1][0], "G-01")
-  assert.equal(gaps[1].at(-1), "SP-02") // 영향 TC
+  assert.equal(gaps[1].at(-1), "S-01-03-01") // 영향 TC
 })
 
 test("설정의 columns 순서와 빈 열을 따른다", async () => {
@@ -62,4 +62,20 @@ test("객체 값(수식·하이퍼링크)은 거부한다", () => {
   const r = spawnSync("node", [SCRIPT, bad], { encoding: "utf8" })
   assert.equal(r.status, 1)
   assert.match(r.stderr, /X-01: expected 는 문자열이어야 합니다/)
+})
+
+test("idScheme spec 이면 화면 ID + 주석 번호 형식을 검사한다", () => {
+  const dir = mkdtempSync(join(tmpdir(), "qa-"))
+  const cfg = join(dir, "cfg.json")
+  writeFileSync(cfg, JSON.stringify({ idScheme: "spec" }))
+  const draft = (c) => {
+    const f = join(dir, `${c.id}.draft.json`)
+    writeFileSync(f, JSON.stringify({ gaps: [], cases: [c] }))
+    return f
+  }
+  const ok = spawnSync("node", [SCRIPT, draft({ id: "SCR-03-08-01", screenId: "SCR-03", annotation: 8, expected: "a" }), "--config", cfg, "--out", join(dir, "ok.xlsx")], { encoding: "utf8" })
+  assert.equal(ok.status, 0, ok.stderr)
+  const bad = spawnSync("node", [SCRIPT, draft({ id: "SCR-03-8-1", screenId: "SCR-03", annotation: 8, expected: "a" }), "--config", cfg], { encoding: "utf8" })
+  assert.equal(bad.status, 1)
+  assert.match(bad.stderr, /SCR-03-08-<두 자리 순번>/)
 })
