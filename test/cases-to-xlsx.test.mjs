@@ -39,15 +39,33 @@ test("기본 열로 QA 케이스와 미정의 항목 시트를 만든다", async
   assert.equal(items[1][11], "S-01-03-01") // 영향 TC
 })
 
-test("기획자 전달 문구에는 질문, 선택지, 기한만 들어간다", async () => {
+test("기획자 전달 문구에는 위치, 질문, 선택지만 들어간다", async () => {
   const out = join(tmp(), "out.xlsx")
   execFileSync("node", [SCRIPT, FIXTURE, "--out", out, ...NO_CONFIG])
   const text = (await readSheet(out, "미정의 항목"))[1][12]
   assert.equal(
     text,
-    "[S-01 #3 목록] 목록이 0건이면 어떤 화면이 나오나요?\nA. 빈 화면 + 안내 문구\nB. 목록 영역 숨김\nC. 기타: (직접 작성)\n우선 A 기준으로 TC를 작성해 두고, 답을 주시면 그에 맞춰 고치겠습니다. 가능하면 12월 31일까지 부탁드립니다. (U-01)",
+    "U-01. [S-01 #3 목록] 목록이 0건이면 어떤 화면이 나오나요?\n   A. 빈 화면 + 안내 문구 (권장)\n   B. 목록 영역 숨김\n   C. 기타: (직접 작성)",
   )
-  assert.doesNotMatch(text, /근거|영향|권장|없으면/)
+  assert.doesNotMatch(text, /근거|영향|없으면/)
+})
+
+test("팀즈 메시지는 차단형 질문과 비차단형 참고를 한 메시지로 묶는다", () => {
+  const d = sample()
+  d.title = "샘플 목록"
+  d.undefinedItems.push({ ...d.undefinedItems[0], id: "U-02", blocking: false, ask: "날짜는 어떤 형식인가요?" })
+  d.cases[1].assumptions = ["U-01", "U-02"]
+  const dir = tmp()
+  const f = join(dir, "x.draft.json")
+  writeFileSync(f, JSON.stringify(d))
+  execFileSync("node", [SCRIPT, f, ...NO_CONFIG])
+  const msg = readFileSync(join(dir, "x.questions.txt"), "utf8")
+  assert.match(msg, /^\[샘플 목록\] 기획 확인 부탁드립니다 \(질문 1개\)/)
+  assert.match(msg, /"U-01 A"처럼/)
+  assert.match(msg, /가능하면 12월 31일까지 부탁드립니다/)
+  assert.match(msg, /참고: 아래는[\s\S]*U-02\. /)
+  assert.equal(msg.match(/가능하면/g).length, 1) // 기한 문장은 한 번만
+  assert.doesNotMatch(msg, /```|##/) // 팀즈에 붙일 일반 텍스트
 })
 
 test("설정의 columns 순서와 빈 열, spec ID 체계를 따른다", async () => {
@@ -122,7 +140,7 @@ test("예전 이름 gaps 도 읽는다", () => {
   assert.equal(run(d).status, 0)
 })
 
-test("답을 기다리는 항목만 questions.md 에 모으고, 답이 온 항목은 전달 문구를 비운다", async () => {
+test("답을 기다리는 항목만 팀즈 메시지에 넣고, 답이 온 항목은 전달 문구를 비운다", async () => {
   const d = sample()
   d.undefinedItems.push({ ...d.undefinedItems[0], id: "U-02", status: "changed", answer: "B" })
   d.cases[1].assumptions = ["U-01", "U-02"]
@@ -130,8 +148,8 @@ test("답을 기다리는 항목만 questions.md 에 모으고, 답이 온 항�
   const f = join(dir, "x.draft.json")
   writeFileSync(f, JSON.stringify(d))
   execFileSync("node", [SCRIPT, f, ...NO_CONFIG])
-  const q = readFileSync(join(dir, "x.questions.md"), "utf8")
-  assert.match(q, /## U-01 \(차단형\)/)
+  const q = readFileSync(join(dir, "x.questions.txt"), "utf8")
+  assert.match(q, /U-01\. /)
   assert.doesNotMatch(q, /U-02/)
   const items = await readSheet(join(dir, "x.xlsx"), "미정의 항목")
   assert.equal(items[2][12], "(답 반영됨, 다시 보내지 않음)")

@@ -7,12 +7,14 @@
  *   node cases-to-xlsx.mjs <outputDir>/<이름>.draft.json [--config .qa-cases.json]   # → <outputDir>/<이름>.xlsx
  *   node cases-to-xlsx.mjs <outputDir>/<이름>.draft.json --out <경로>.xlsx
  *   같은 경로에 엑셀이 있으면 <이름>.prev.xlsx 로 남기고 새로 만든다.
- *   답을 기다리는 항목의 기획자 전달 문구만 모아 <이름>.questions.md 로도 쓴다.
+ *   답을 기다리는 항목을 기획자에게 보낼 팀즈 메시지 하나로 모아 <이름>.questions.txt 로도 쓴다.
+ *   draft.json 의 "title"(예: "수분 기록(오늘의 기록)")이 메시지 첫 줄에 들어간다. 없으면 feature 를 쓴다.
  *
  * draft.json 형식:
  * {
  *   "feature": "water-log",
- *   "source": { "mode": "mcp" | "pdf", "ref": "Figma 링크 또는 PDF 경로", "readAt": "2026-11-16" },
+ *   "title": "수분 기록(오늘의 기록)",          // 팀즈 메시지 첫 줄에 쓴다
+ *   "source": { "mode": "mcp" | "pdf", "figmaUrl": "사용자가 준 Figma 링크(없으면 생략)", "ref": "PDF 경로 등", "readAt": "2026-11-16" },
  *   "facts": [                                   // 2단계: 기획서에 적힌 사실
  *     { "id": "F-01", "where": "SCR-03 #8", "text": "tap 시 100ml 씩 증가" }
  *   ],
@@ -200,14 +202,10 @@ const koDate = (d) => {
   const [, m, day] = d.split("-").map(Number)
   return `${m}월 ${day}일`
 }
-// 기획자에게 그대로 붙여 넣는 문구. 근거와 영향 TC 같은 작성자용 정보는 넣지 않는다.
+// 질문 하나의 블록: ID, 기획서 위치, 질문, 선택지(권장 표시). 근거와 영향 TC 같은 작성자용 정보는 넣지 않는다.
+// 답하는 법, 기한, "그동안 권장 선택지로 작성해 둔다"는 팀즈 메시지 머리(questions.txt)에 한 번만 쓴다.
 const plannerText = (u) =>
-  [
-    `[${u.where ?? u.frame ?? ""}] ${u.ask}`,
-    ...optionLines(u, false),
-    // 조건을 건 통보("~까지 답이 없으면 ~하겠다")는 압박처럼 읽힌다. 먼저 하는 일을 앞에 두고 기한은 부탁으로 쓴다
-    `우선 ${u.recommended} 기준으로 TC를 작성해 두고, 답을 주시면 그에 맞춰 고치겠습니다.${u.deadline ? ` 가능하면 ${koDate(u.deadline)}까지 부탁드립니다.` : ""} (${u.id})`,
-  ].join("\n")
+  [`${u.id}. [${u.where ?? u.frame ?? ""}] ${u.ask}`, ...optionLines(u, true).map((l) => `   ${l}`)].join("\n")
 
 const itemSheet = wb.addWorksheet("미정의 항목")
 itemSheet.columns = [
@@ -241,7 +239,7 @@ for (const u of items) {
     STATUS[status] ?? status,
     u.answer,
     affected.join(", ") || (u.noCase ? `없음: ${u.noCase}` : ""),
-    // 답이 온 항목은 다시 보낼 문구가 아니므로 비운다. 처음 보낸 문구는 questions.md 이력에 남는다
+    // 답이 온 항목은 다시 보낼 문구가 아니므로 비운다
     status === "open" ? plannerText(u) : status === "dictionary" ? "" : "(답 반영됨, 다시 보내지 않음)",
   ])
   if (status === "open") row.getCell(1).fill = yellow
@@ -252,16 +250,37 @@ itemSheet.views = [{ state: "frozen", ySplit: 1 }]
 if (existsSync(out)) copyFileSync(out, out.replace(/\.xlsx$/, ".prev.xlsx"))
 await wb.xlsx.writeFile(out)
 
-// 기획자에게 보낼 질문만 모은 파일. 답을 기다리는 항목만 넣는다(복사해서 Figma 댓글이나 메신저에 붙인다)
-const questionsPath = out.replace(/\.xlsx$/, ".questions.md")
+// 기획자에게 보낼 팀즈 메시지. 기획서 섹션 하나에 메시지 하나로 보낸다(질문이 흩어지지 않게).
+// 마크다운이 아닌 일반 텍스트로 쓴다. 팀즈에 붙여 넣으면 그대로 보인다.
+const questionsPath = out.replace(/\.xlsx$/, ".questions.txt")
 const openItems = items.filter((u) => effectiveStatus(u) === "open")
-writeFileSync(
-  questionsPath,
-  openItems.length
-    ? `# 기획 확인 질문 (${openItems.length}개)\n\n` +
-        openItems.map((u) => `## ${u.id}${u.blocking ? " (차단형)" : ""}\n\n\`\`\`\n${plannerText(u)}\n\`\`\`\n`).join("\n")
-    : "# 기획 확인 질문\n\n답을 기다리는 항목이 없습니다.\n",
-)
+const asks = openItems.filter((u) => u.blocking)
+const fyi = openItems.filter((u) => !u.blocking)
+const deadlines = asks.map((u) => u.deadline).filter(Boolean).sort()
+const title = draft.title ?? draft.feature ?? ""
+const message = []
+if (asks.length) {
+  message.push(
+    `[${title}] 기획 확인 부탁드립니다 (질문 ${asks.length}개)`,
+    // 기획자가 열 수 있는 Figma 링크만 넣는다(로컬 PDF 경로는 쓸모가 없다)
+    ...(draft.source?.figmaUrl ? [`기획서: ${draft.source.figmaUrl}`] : []),
+    "",
+    "답은 이 메시지의 스레드에 \"U-01 A\"처럼 번호와 선택지로 남겨 주세요. 맞는 선택지가 없으면 \"U-01 기타: 내용\"으로 적어 주시면 됩니다.",
+    `그동안 TC는 (권장) 선택지 기준으로 작성해 두고, 답을 주시면 그에 맞춰 고치겠습니다.${deadlines.length ? ` 가능하면 ${koDate(deadlines[0])}까지 부탁드립니다.` : ""}`,
+    "",
+    asks.map(plannerText).join("\n\n"),
+  )
+}
+if (fyi.length) {
+  message.push(
+    ...(asks.length ? ["", "────────"] : [`[${title}] 기획 확인 참고 (${fyi.length}개)`]),
+    "",
+    "참고: 아래는 기획서에 정의되지 않아 (권장) 선택지로 작성한 항목입니다. 다른 의견이 있을 때만 알려 주세요.",
+    "",
+    fyi.map(plannerText).join("\n\n"),
+  )
+}
+writeFileSync(questionsPath, message.length ? message.join("\n") + "\n" : "답을 기다리는 항목이 없습니다.\n")
 
 const blocking = items.filter((u) => u.blocking).length
 const assumed = cases.filter((c) => (c.assumptions ?? []).length).length
@@ -273,4 +292,4 @@ console.log(
   `   미정의 항목 ${items.length}개: 차단형 ${blocking}, 비차단형 ${items.length - blocking}, 답 대기 ${waiting.size}, 기한 경과 ${expired}`,
 )
 if (facts.length) console.log(`   사실 ${facts.length}개, 모두 TC 와 연결됨`)
-console.log(`✅ ${questionsPath}  (기획자에게 보낼 질문 ${openItems.length}개)`)
+console.log(`✅ ${questionsPath}  (팀즈 메시지: 질문 ${asks.length}개, 참고 ${fyi.length}개)`)
