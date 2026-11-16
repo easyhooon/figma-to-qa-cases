@@ -51,3 +51,15 @@ test("없는 공백 ID 를 가정으로 쓰면 실패한다", () => {
   assert.equal(r.status, 1)
   assert.match(r.stderr, /없는 공백 ID G-9/)
 })
+
+test("객체 값(수식·하이퍼링크)은 거부한다", () => {
+  const dir = mkdtempSync(join(tmpdir(), "qa-"))
+  const bad = join(dir, "bad.draft.json")
+  writeFileSync(bad, JSON.stringify({
+    gaps: [],
+    cases: [{ id: "X-01", expected: { formula: "HYPERLINK(\"http://x\")" } }],
+  }))
+  const r = spawnSync("node", [SCRIPT, bad], { encoding: "utf8" })
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /X-01: expected 는 문자열이어야 합니다/)
+})

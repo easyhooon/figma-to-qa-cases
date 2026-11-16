@@ -28,64 +28,77 @@
  *   ]
  * }
  */
-import { existsSync, readFileSync } from "node:fs"
-import ExcelJS from "exceljs"
+import { existsSync, readFileSync } from "node:fs";
+import ExcelJS from "exceljs";
 
-const args = process.argv.slice(2)
-const FLAGS = ["--out", "--config"]
+const args = process.argv.slice(2);
+const FLAGS = ["--out", "--config"];
 const input = args.find(
   (a, i) => !a.startsWith("--") && !FLAGS.includes(args[i - 1]),
-)
-const outIdx = args.indexOf("--out")
+);
+const outIdx = args.indexOf("--out");
 if (!input) {
-  console.error("사용: node cases-to-xlsx.mjs <draft.json> [--config .qa-cases.json] [--out <xlsx>]")
-  process.exit(1)
+  console.error(
+    "사용: node cases-to-xlsx.mjs <draft.json> [--config .qa-cases.json] [--out <xlsx>]",
+  );
+  process.exit(1);
 }
 const out =
   outIdx >= 0
     ? args[outIdx + 1]
-    : input.replace(/\.draft\.json$|\.json$/, ".xlsx")
+    : input.replace(/\.draft\.json$|\.json$/, ".xlsx");
 
-const draft = JSON.parse(readFileSync(input, "utf8"))
-const cfgIdx = args.indexOf("--config")
-const cfgPath = cfgIdx >= 0 ? args[cfgIdx + 1] : ".qa-cases.json"
+const draft = JSON.parse(readFileSync(input, "utf8"));
+const cfgIdx = args.indexOf("--config");
+const cfgPath = cfgIdx >= 0 ? args[cfgIdx + 1] : ".qa-cases.json";
 const config = existsSync(cfgPath)
   ? JSON.parse(readFileSync(cfgPath, "utf8"))
-  : {}
-const gaps = draft.gaps ?? []
-const cases = draft.cases ?? []
+  : {};
+const gaps = draft.gaps ?? [];
+const cases = draft.cases ?? [];
 
 // ── 검사: 틀린 데이터로 엑셀을 만들지 않는다 ───────────────────────────
-const errors = []
-const gapIds = new Set(gaps.map((g) => g.id))
-const seen = new Set()
+const errors = [];
+const gapIds = new Set(gaps.map((g) => g.id));
+const seen = new Set();
 for (const c of cases) {
-  if (!c.id) errors.push(`id 없는 케이스: ${JSON.stringify(c).slice(0, 60)}`)
-  if (seen.has(c.id)) errors.push(`TC ID 중복: ${c.id}`)
-  seen.add(c.id)
-  if (!c.expected) errors.push(`${c.id}: expected(기대 결과) 없음`)
+  if (!c.id) errors.push(`id 없는 케이스: ${JSON.stringify(c).slice(0, 60)}`);
+  if (seen.has(c.id)) errors.push(`TC ID 중복: ${c.id}`);
+  seen.add(c.id);
+  if (!c.expected) errors.push(`${c.id}: expected(기대 결과) 없음`);
   for (const a of c.assumptions ?? []) {
     if (!gapIds.has(a))
-      errors.push(`${c.id}: 없는 공백 ID ${a} 를 가정으로 참조`)
+      errors.push(`${c.id}: 없는 공백 ID ${a} 를 가정으로 참조`);
   }
 }
+// 객체 값은 exceljs 가 수식·하이퍼링크로 넣는다({ formula }, { hyperlink }). 문자열·숫자·불리언·그 배열만 허용한다.
+const isPlain = (v) =>
+  v == null || ["string", "number", "boolean"].includes(typeof v);
+const checkPlain = (owner, obj) => {
+  for (const [k, v] of Object.entries(obj)) {
+    const ok = Array.isArray(v) ? v.every(isPlain) : isPlain(v);
+    if (!ok) errors.push(`${owner}: ${k} 는 문자열이어야 합니다`);
+  }
+};
+for (const c of cases) checkPlain(c.id ?? "(id 없음)", c);
+for (const g of gaps) checkPlain(g.id ?? "(id 없음)", g);
 for (const g of gaps) {
-  if (!g.recommended) errors.push(`${g.id}: 권장값(recommended) 없음`)
+  if (!g.recommended) errors.push(`${g.id}: 권장값(recommended) 없음`);
 }
 if (errors.length) {
   console.error(
     "❌ draft.json 오류:\n" + errors.map((e) => "  - " + e).join("\n"),
-  )
-  process.exit(1)
+  );
+  process.exit(1);
 }
 
 // ── 엑셀 작성 ──────────────────────────────────────────────────────────
-const wb = new ExcelJS.Workbook()
+const wb = new ExcelJS.Workbook();
 const header = {
   font: { bold: true },
   fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFE7E6E6" } },
-}
-const wrap = { alignment: { wrapText: true, vertical: "top" } }
+};
+const wrap = { alignment: { wrapText: true, vertical: "top" } };
 
 // 시트 1: 프로젝트 설정의 열 구성
 const DEFAULT_COLUMNS = [
@@ -98,20 +111,23 @@ const DEFAULT_COLUMNS = [
   { header: "기대 결과", field: "expected", width: 40 },
   { header: "플랫폼", field: "platform", width: 8 },
   { header: "비고", field: "notes", width: 36 },
-]
-const columns = config.columns ?? DEFAULT_COLUMNS
-const sheet = wb.addWorksheet(config.sheetName ?? "QA 케이스")
-sheet.columns = columns.map((c) => ({ header: c.header, width: c.width ?? 16 }))
+];
+const columns = config.columns ?? DEFAULT_COLUMNS;
+const sheet = wb.addWorksheet(config.sheetName ?? "QA 케이스");
+sheet.columns = columns.map((c) => ({
+  header: c.header,
+  width: c.width ?? 16,
+}));
 const openGaps = new Set(
   gaps.filter((g) => g.status === "open").map((g) => g.id),
-)
+);
 const valueOf = (c, field) => {
-  const assumptions = c.assumptions ?? []
+  const assumptions = c.assumptions ?? [];
   switch (field) {
     case "steps":
       return Array.isArray(c.steps)
         ? c.steps.map((s, i) => `${i + 1}. ${s}`).join("\n")
-        : (c.steps ?? "")
+        : (c.steps ?? "");
     case "notes":
       return [
         assumptions.length ? `가정: ${assumptions.join(", ")}` : "",
@@ -119,29 +135,31 @@ const valueOf = (c, field) => {
         c.note ?? "",
       ]
         .filter(Boolean)
-        .join("\n")
+        .join("\n");
     case "assumptions":
-      return assumptions.join(", ")
+      return assumptions.join(", ");
     case "platform":
-      return c.platform ?? "공통"
+      return c.platform ?? "공통";
     default:
-      return c[field] ?? ""
+      return c[field] ?? "";
   }
-}
+};
 for (const c of cases) {
-  const row = sheet.addRow(columns.map((col) => valueOf(c, col.field)))
-  row.eachCell((cell) => Object.assign(cell, wrap))
+  const row = sheet.addRow(
+    columns.map((col) => String(valueOf(c, col.field) ?? "")),
+  );
+  row.eachCell((cell) => Object.assign(cell, wrap));
   // 답이 안 온 가정에 기댄 TC 는 첫 칸을 노란색으로 표시
   if ((c.assumptions ?? []).some((a) => openGaps.has(a))) {
     row.getCell(1).fill = {
       type: "pattern",
       pattern: "solid",
       fgColor: { argb: "FFFFF2CC" },
-    }
+    };
   }
 }
-sheet.getRow(1).eachCell((cell) => Object.assign(cell, header))
-sheet.views = [{ state: "frozen", ySplit: 1 }]
+sheet.getRow(1).eachCell((cell) => Object.assign(cell, header));
+sheet.views = [{ state: "frozen", ySplit: 1 }];
 
 // 시트 2: 기획 확인 (공백 목록)
 const STATUS = {
@@ -149,8 +167,8 @@ const STATUS = {
   confirmed: "권장값 확정",
   changed: "변경됨",
   dictionary: "결정 사전 적용",
-}
-const gapSheet = wb.addWorksheet("기획 확인")
+};
+const gapSheet = wb.addWorksheet("기획 확인");
 gapSheet.columns = [
   { header: "ID", width: 8 },
   { header: "구분", width: 8 },
@@ -164,36 +182,38 @@ gapSheet.columns = [
   { header: "상태", width: 12 },
   { header: "답", width: 24 },
   { header: "영향 TC", width: 20 },
-]
+];
 for (const g of gaps) {
   const affected = cases
     .filter((c) => (c.assumptions ?? []).includes(g.id))
-    .map((c) => c.id)
-  const row = gapSheet.addRow([
-    g.id,
-    g.blocking ? "차단형" : "비차단형",
-    g.type,
-    g.frame,
-    g.question,
-    (g.options ?? []).join("\n"),
-    g.recommended,
-    g.basis,
-    g.deadline,
-    STATUS[g.status] ?? g.status ?? "답 대기",
-    g.answer ?? "",
-    affected.join(", "),
-  ])
-  row.eachCell((cell) => Object.assign(cell, wrap))
+    .map((c) => c.id);
+  const row = gapSheet.addRow(
+    [
+      g.id,
+      g.blocking ? "차단형" : "비차단형",
+      g.type,
+      g.frame,
+      g.question,
+      (g.options ?? []).join("\n"),
+      g.recommended,
+      g.basis,
+      g.deadline,
+      STATUS[g.status] ?? g.status ?? "답 대기",
+      g.answer ?? "",
+      affected.join(", "),
+    ].map((v) => String(v ?? "")),
+  );
+  row.eachCell((cell) => Object.assign(cell, wrap));
 }
-gapSheet.getRow(1).eachCell((cell) => Object.assign(cell, header))
-gapSheet.views = [{ state: "frozen", ySplit: 1 }]
+gapSheet.getRow(1).eachCell((cell) => Object.assign(cell, header));
+gapSheet.views = [{ state: "frozen", ySplit: 1 }];
 
-await wb.xlsx.writeFile(out)
+await wb.xlsx.writeFile(out);
 
-const blocking = gaps.filter((g) => g.blocking).length
-const assumed = cases.filter((c) => (c.assumptions ?? []).length).length
-console.log(`✅ ${out}`)
-console.log(`   TC ${cases.length}개 (가정 포함 ${assumed}개)`)
+const blocking = gaps.filter((g) => g.blocking).length;
+const assumed = cases.filter((c) => (c.assumptions ?? []).length).length;
+console.log(`✅ ${out}`);
+console.log(`   TC ${cases.length}개 (가정 포함 ${assumed}개)`);
 console.log(
   `   공백 ${gaps.length}개: 차단형 ${blocking}, 비차단형 ${gaps.length - blocking}, 답 대기 ${openGaps.size}`,
-)
+);
