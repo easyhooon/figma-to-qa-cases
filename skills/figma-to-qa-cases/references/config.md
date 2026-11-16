@@ -36,6 +36,6 @@
 - `assumptions`: 가정 공백 ID 목록
 - 그 밖의 값(예: `"blank"`): 빈 칸. 다음 단계 도구가 채우는 열에 쓴다
 
-`.gitignore` 에 `<outputDir>/*/snapshot/` 을 넣는다. 스냅샷은 사내 기획 문서 원본이다.
+`.gitignore` 에 `<outputDir>/*/snapshot/` 을 넣는다. 스냅샷은 비공개 기획 문서 원본이다.
 
-예시: [`examples/hime.qa-cases.json`](../../../examples/hime.qa-cases.json)
+예시: [`examples/playwright-e2e.qa-cases.json`](../../../examples/playwright-e2e.qa-cases.json)

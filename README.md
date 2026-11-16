@@ -33,7 +33,7 @@ Claude Code 안에서:
 
 ## 프로젝트 설정
 
-쓰는 프로젝트 루트에 `.qa-cases.json` 을 둔다. 결과 엑셀 열 구성, 결정 사전 위치, 출력 폴더를 정한다. [설정 설명](skills/figma-to-qa-cases/references/config.md), [예시](examples/hime.qa-cases.json).
+쓰는 프로젝트 루트에 `.qa-cases.json` 을 둔다. 결과 엑셀 열 구성, 결정 사전 위치, 출력 폴더를 정한다. [설정 설명](skills/figma-to-qa-cases/references/config.md), [예시](examples/playwright-e2e.qa-cases.json).
 
 ## 구조
 
@@ -50,6 +50,6 @@ skills/figma-to-qa-cases/
 
 ## 상태
 
-v0.1. 사내 앱 화면 1개 섹션(수분 기록)으로 시범 실행했다. 기존 QA 테스트 케이스와의 비교, 2~3개 섹션 추가 실행 후 다듬어 팀 레포로 옮길 예정.
+v0.1. 실제 서비스 기획서 섹션 1개(화면 3개)로 시범 실행했다. 기존 QA 테스트 케이스와의 비교, 2~3개 섹션 추가 실행 후 다듬어 팀 레포로 옮길 예정.
 
-`figma-pdf-text.mjs` 는 사내 기획서 PDF 로만 확인해서 테스트가 없다. 공개해도 되는 Figma 샘플을 만들면 추가한다.
+`figma-pdf-text.mjs` 는 비공개 기획서 PDF 로만 확인해서 테스트가 없다. 공개해도 되는 Figma 샘플을 만들면 추가한다.

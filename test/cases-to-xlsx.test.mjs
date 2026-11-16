@@ -35,7 +35,7 @@ test("설정의 columns 순서와 빈 열을 따른다", async () => {
   const dir = mkdtempSync(join(tmpdir(), "qa-"))
   const out = join(dir, "out.xlsx")
   execFileSync("node", [
-    SCRIPT, "--config", "examples/hime.qa-cases.json", FIXTURE, "--out", out,
+    SCRIPT, "--config", "examples/playwright-e2e.qa-cases.json", FIXTURE, "--out", out,
   ])
   const cases = await readSheet(out, "QA 케이스")
   assert.deepEqual(cases[0].slice(8), ["자동화 구분", "자동화 spec", "비고"])
