@@ -1,0 +1,42 @@
+<!-- figma-pdf-text 테스트용 가짜 get_metadata 결과. 회사 기획서에서 문제가 됐던 구조를 작게 재현한다.
+     - 섹션과 같은 이름의 글자 노드가 섹션보다 먼저 나온다 (섹션을 글자 노드로 잘못 고르면 안 됨)
+     - SCR-01: 화면 ID 가 묶음 > Frame > 글자 (바로 아래)
+     - SCR-02: 화면 ID 가 묶음 > Frame 1739347706 > Frame > 글자 (한 단계 깊은 바텀시트)
+     - Frame 500: 화면 ID 가 없는 상태 패널 (화면 아님)
+     - Vector 1: 직선 화살표 SCR-01 → SCR-02
+     - Vector 2: ㄱ자 화살표. 끝이 SCR-02 앞 60pt 에서 끝난다 -->
+<canvas id="0:1" name="페이지">
+  <text id="9:1" name="샘플 기록 (오늘)" x="0" y="-200" width="300" height="40" />
+  <frame id="1:1" name="샘플 기록 (오늘)" x="1000" y="1000" width="2400" height="1200">
+    <frame id="1:2" name="온보딩" x="0" y="0" width="2400" height="100">
+      <text id="1:3" name="샘플 기록 (오늘)" x="40" y="30" width="300" height="40" />
+    </frame>
+    <frame id="2:1" name="[SCR-01]" x="100" y="200" width="800" height="900">
+      <frame id="2:2" name="Frame" x="0" y="0" width="360" height="58">
+        <text id="2:3" name="샘플 홈" x="0" y="0" width="100" height="24" />
+        <text id="2:4" name="[SCR-01]" x="0" y="34" width="100" height="24" />
+      </frame>
+      <frame id="2:5" name="Frame 100" x="0" y="88" width="800" height="812">
+        <frame id="2:6" name="Group 1" x="0" y="0" width="360" height="800" />
+        <frame id="2:7" name="Frame 200" x="390" y="0" width="410" height="800" />
+      </frame>
+    </frame>
+    <frame id="3:1" name="Frame 300" x="1400" y="200" width="800" height="900">
+      <frame id="3:2" name="Frame 1739347706" x="0" y="0" width="360" height="58">
+        <frame id="3:3" name="Frame" x="0" y="0" width="360" height="58">
+          <text id="3:4" name="샘플 수정 (바텀시트)" x="0" y="0" width="200" height="24" />
+          <text id="3:5" name="[SCR-02]" x="0" y="34" width="100" height="24" />
+        </frame>
+      </frame>
+      <frame id="3:6" name="Frame 1739347703" x="0" y="88" width="800" height="812">
+        <frame id="3:7" name="Group 2" x="0" y="0" width="360" height="800" />
+        <frame id="3:8" name="Frame 400" x="390" y="0" width="410" height="800" />
+      </frame>
+    </frame>
+    <frame id="4:1" name="Frame 500" x="1000" y="1150" width="300" height="40">
+      <text id="4:2" name="[키 정보 없는 경우]" x="10" y="10" width="190" height="20" />
+    </frame>
+    <vector id="5:1" name="Vector 1" x="400" y="500" width="1000" height="0.0001" />
+    <vector id="5:2" name="Vector 2" x="300" y="700" width="1040" height="300" />
+  </frame>
+</canvas>

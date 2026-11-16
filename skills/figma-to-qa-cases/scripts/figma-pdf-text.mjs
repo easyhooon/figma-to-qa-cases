@@ -4,7 +4,11 @@
  *
  * 사용:
  *   node figma-pdf-text.mjs <snapshot 폴더> --pdf <섹션.pdf> --section "<섹션 이름 또는 노드 ID>"
- *   → <snapshot 폴더>/frames.json
+ *   → <snapshot 폴더>/frames.json, arrows.json, frame-<화면 ID>.png
+ *
+ * 테스트용:
+ *   node figma-pdf-text.mjs <폴더> --bbox <pdftotext -bbox-layout 결과.html> --section "<섹션>" --no-images
+ *   PDF 대신 미리 뽑은 글자 좌표를 읽고, 이미지는 만들지 않는다(poppler 없이 돈다). test/figma-pdf-text.test.mjs 참고.
  *
  * 전제:
  * - <snapshot 폴더>/metadata.xml 은 MCP get_metadata 결과(XML) 그대로다.
@@ -29,8 +33,10 @@ const opt = (k) => {
   return i >= 0 ? args[i + 1] : undefined
 }
 const pdf = opt("--pdf")
+const bbox = opt("--bbox")
+const noImages = args.includes("--no-images")
 const section = opt("--section")
-if (!dir || !pdf || !section) {
+if (!dir || !(pdf || bbox) || !section || (!pdf && !noImages)) {
   console.error(
     '사용: node figma-pdf-text.mjs <snapshot 폴더> --pdf <섹션.pdf> --section "<섹션 이름 또는 노드 ID>"',
   )
@@ -209,10 +215,12 @@ walkVec(sec, 0, 0)
 // ── PDF 글자 줄과 좌표 ─────────────────────────────────────────────────
 // pdftotext 의 줄을 그대로 쓴다. 단어 좌표로 직접 줄을 다시 만들면 Figma 자간 때문에 띄어쓰기가 사라지고
 // 주석의 글자 조각 높이가 달라 줄이 섞인다(2026-11-16 첫 시범 실행에서 확인).
-const html = execFileSync("pdftotext", ["-q", "-bbox-layout", pdf, "-"], {
-  encoding: "utf8",
-  maxBuffer: 64 * 1024 * 1024,
-})
+const html = bbox
+  ? readFileSync(bbox, "utf8")
+  : execFileSync("pdftotext", ["-q", "-bbox-layout", pdf, "-"], {
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    })
 const lines = []
 for (const m of html.matchAll(
   /<line xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([\s\S]*?)<\/line>/g,
@@ -263,7 +271,7 @@ for (const l of lines.sort((a, b) => a.y - b.y || a.x - b.x)) {
 // ── 화면 묶음별 이미지 (문구를 눈으로 확인할 때 쓴다, 2배율) ─────────────
 const SCALE = 2
 for (const [i, g] of groups.entries()) {
-  if (!g.label) continue
+  if (!g.label || noImages) continue
   const file = `frame-${(g.label ?? g.id).replace(/[^\w-]/g, "")}`
   execFileSync("pdftoppm", [
     "-q",
