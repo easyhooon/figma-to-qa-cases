@@ -35,7 +35,8 @@
 - 케이스 필드: `id`, `major`, `minor`, `screen`, `screenId`, `annotation`, `precondition`, `expected`, `platform`, `figmaNode`, `note`
 - `steps`: 절차 배열을 `1. …` 줄바꿈으로 합친 값
 - `notes`: `가정: G-01` + `Figma: <근거 위치>` + `note` 를 합친 값
-- `assumptions`: 가정 공백 ID 목록
+- `assumptions`: 가정으로 쓴 미정의 항목 ID 목록
+- `facts`: 근거 사실 ID 목록
 - 그 밖의 값(예: `"blank"`): 빈 칸. 다음 단계 도구가 채우는 열에 쓴다
 
 `.gitignore` 에 `<outputDir>/*/snapshot/` 을 넣는다. 스냅샷은 비공개 기획 문서 원본이다.

@@ -1,15 +1,24 @@
 {
   "feature": "sample",
   "source": { "mode": "pdf", "ref": "sample.pdf", "readAt": "2026-11-16" },
-  "gaps": [
-    { "id": "G-01", "type": "상태 누락", "blocking": true, "frame": "S-01 #3", "question": "목록 0건 화면 없음",
-      "options": ["A (권장) 빈 화면 + 안내 문구", "B 목록 영역 숨김"], "recommended": "A",
-      "basis": "S-02 화면의 빈 상태", "deadline": "2026-11-18", "status": "open" }
+  "facts": [
+    { "id": "F-01", "where": "S-01 #1", "text": "목록 제목 '진행 중'" },
+    { "id": "F-02", "where": "S-01 #3", "text": "목록 영역" }
+  ],
+  "undefinedItems": [
+    {
+      "id": "U-01", "type": "상태 누락", "blocking": true, "where": "S-01 #3 목록",
+      "question": "목록 0건일 때 화면이 정의되지 않음",
+      "ask": "목록이 0건이면 어떤 화면이 나오나요?",
+      "options": ["빈 화면 + 안내 문구", "목록 영역 숨김"],
+      "recommended": "A", "basis": "S-02 화면의 빈 상태", "deadline": "2099-12-31", "status": "open"
+    }
   ],
   "cases": [
-    { "id": "S-01-01-01", "screenId": "S-01", "annotation": 1, "major": "샘플", "minor": "목록", "screen": "S-01", "precondition": "로그인",
-      "steps": ["목록 진입"], "expected": "'진행 중' 제목 노출", "figmaNode": "S-01 #1" },
-    { "id": "S-01-03-01", "screenId": "S-01", "annotation": 3, "major": "샘플", "minor": "목록", "screen": "S-01", "precondition": "데이터 0건",
-      "steps": ["목록 진입"], "expected": "빈 화면 안내 문구 노출", "figmaNode": "S-01 #3", "assumptions": ["G-01"] }
+    { "id": "S-01-01-01", "screenId": "S-01", "annotation": 1, "major": "샘플", "minor": "목록", "screen": "S-01",
+      "precondition": "로그인", "steps": ["목록 진입"], "expected": "'진행 중' 제목 노출", "figmaNode": "S-01 #1", "facts": ["F-01"] },
+    { "id": "S-01-03-01", "screenId": "S-01", "annotation": 3, "major": "샘플", "minor": "목록", "screen": "S-01",
+      "precondition": "데이터 0건", "steps": ["목록 진입"], "expected": "빈 화면 안내 문구 노출", "figmaNode": "S-01 #3",
+      "facts": ["F-02"], "assumptions": ["U-01"] }
   ]
 }
