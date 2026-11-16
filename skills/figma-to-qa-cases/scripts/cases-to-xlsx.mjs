@@ -7,6 +7,7 @@
  *   node cases-to-xlsx.mjs <outputDir>/<이름>.draft.json [--config .qa-cases.json]   # → <outputDir>/<이름>.xlsx
  *   node cases-to-xlsx.mjs <outputDir>/<이름>.draft.json --out <경로>.xlsx
  *   같은 경로에 엑셀이 있으면 <이름>.prev.xlsx 로 남기고 새로 만든다.
+ *   답을 기다리는 항목의 기획자 전달 문구만 모아 <이름>.questions.md 로도 쓴다.
  *
  * draft.json 형식:
  * {
@@ -38,7 +39,7 @@
  * - 확정 기한이 지났는데 답이 없는 항목은 "기한 경과, 권장값 확정"으로 표시한다.
  * - idScheme 이 "spec" 이면 케이스마다 screenId, annotation 을 넣고 id 를 "<screenId>-<주석 두 자리>-<순번 두 자리>" 로 쓴다.
  */
-import { copyFileSync, existsSync, readFileSync } from "node:fs"
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs"
 import ExcelJS from "exceljs"
 
 const args = process.argv.slice(2)
@@ -235,7 +236,8 @@ for (const u of items) {
     STATUS[status] ?? status,
     u.answer,
     affected.join(", ") || (u.noCase ? `없음: ${u.noCase}` : ""),
-    u.status === "dictionary" ? "" : plannerText(u),
+    // 답이 온 항목은 다시 보낼 문구가 아니므로 비운다. 처음 보낸 문구는 questions.md 이력에 남는다
+    status === "open" ? plannerText(u) : status === "dictionary" ? "" : "(답 반영됨, 다시 보내지 않음)",
   ])
   if (status === "open") row.getCell(1).fill = yellow
 }
@@ -244,6 +246,17 @@ itemSheet.views = [{ state: "frozen", ySplit: 1 }]
 
 if (existsSync(out)) copyFileSync(out, out.replace(/\.xlsx$/, ".prev.xlsx"))
 await wb.xlsx.writeFile(out)
+
+// 기획자에게 보낼 질문만 모은 파일. 답을 기다리는 항목만 넣는다(복사해서 Figma 댓글이나 메신저에 붙인다)
+const questionsPath = out.replace(/\.xlsx$/, ".questions.md")
+const openItems = items.filter((u) => effectiveStatus(u) === "open")
+writeFileSync(
+  questionsPath,
+  openItems.length
+    ? `# 기획 확인 질문 (${openItems.length}개)\n\n` +
+        openItems.map((u) => `## ${u.id}${u.blocking ? " (차단형)" : ""}\n\n\`\`\`\n${plannerText(u)}\n\`\`\`\n`).join("\n")
+    : "# 기획 확인 질문\n\n답을 기다리는 항목이 없습니다.\n",
+)
 
 const blocking = items.filter((u) => u.blocking).length
 const assumed = cases.filter((c) => (c.assumptions ?? []).length).length
@@ -255,3 +268,4 @@ console.log(
   `   미정의 항목 ${items.length}개: 차단형 ${blocking}, 비차단형 ${items.length - blocking}, 답 대기 ${waiting.size}, 기한 경과 ${expired}`,
 )
 if (facts.length) console.log(`   사실 ${facts.length}개, 모두 TC 와 연결됨`)
+console.log(`✅ ${questionsPath}  (기획자에게 보낼 질문 ${openItems.length}개)`)

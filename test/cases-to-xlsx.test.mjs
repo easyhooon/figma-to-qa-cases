@@ -121,3 +121,18 @@ test("예전 이름 gaps 도 읽는다", () => {
   delete d.undefinedItems
   assert.equal(run(d).status, 0)
 })
+
+test("답을 기다리는 항목만 questions.md 에 모으고, 답이 온 항목은 전달 문구를 비운다", async () => {
+  const d = sample()
+  d.undefinedItems.push({ ...d.undefinedItems[0], id: "U-02", status: "changed", answer: "B" })
+  d.cases[1].assumptions = ["U-01", "U-02"]
+  const dir = tmp()
+  const f = join(dir, "x.draft.json")
+  writeFileSync(f, JSON.stringify(d))
+  execFileSync("node", [SCRIPT, f, ...NO_CONFIG])
+  const q = readFileSync(join(dir, "x.questions.md"), "utf8")
+  assert.match(q, /## U-01 \(차단형\)/)
+  assert.doesNotMatch(q, /U-02/)
+  const items = await readSheet(join(dir, "x.xlsx"), "미정의 항목")
+  assert.equal(items[2][12], "(답 반영됨, 다시 보내지 않음)")
+})

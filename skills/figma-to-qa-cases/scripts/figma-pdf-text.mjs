@@ -12,7 +12,8 @@
  *   metadata 의 섹션 기준 좌표와 그대로 맞는다.
  * - pdftotext·pdftoppm(poppler) 가 필요하다. macOS: brew install poppler
  *
- * 출력 arrows.json: [{ id, box, certain, ends: [[끝점1 위치, 끝점2 위치], ...] }] 화면 사이 화살표. 방향은 이미지로 확인한다.
+ * 출력 arrows.json: [{ id, box, shape, resolved, ends: [[끝점1 위치, 끝점2 위치], ...] }] 화면 사이 화살표.
+ *   resolved: true 면 양 끝 화면이 하나로 정해진 것이다. 방향은 이미지로 확인한다(출발 쪽에 점이 있다).
  * 출력 frames.json: [{ id, name, label, screen, box, image, areas: [{ id, name, box, lines: ["..."] }] }]
  * - 섹션 바로 아래 프레임 = 화면 묶음(화면 + 오른쪽 주석). 그 안의 2단계 프레임 = 영역. 영역마다 kind(제목, 시안, 주석)를 붙인다.
  * - 글자 줄은 가운데 점이 들어가는 가장 작은 영역에 붙는다. 어디에도 안 들어가면 "(프레임 밖)" 으로 모은다(화살표 라벨·분기 설명).
@@ -70,9 +71,10 @@ for (const m of xml.matchAll(/<(\/?)([a-z-]+)([^>]*?)(\/?)>/g)) {
   stack.at(-1).children.push(node)
   if (!selfClose) stack.push(node)
 }
+// 섹션은 글자 노드가 아닌 것 중에서 찾는다. 섹션 제목 배너 안에 같은 이름의 글자 노드가 있다.
 const find = (n) => {
   for (const c of n.children) {
-    if (c.id === section || c.name === section) return c
+    if (c.tag !== "text" && (c.id === section || c.name === section)) return c
     const r = find(c)
     if (r) return r
   }
@@ -93,8 +95,21 @@ const groups = sec.children
     const G = abs(g, 0, 0)
     const isLabel = (t) =>
       t.tag === "text" && /^\[[A-Z]+-[\d-]+\]$/.test(t.name ?? "")
-    const titleFrame = g.children.find((c) => (c.children ?? []).some(isLabel))
-    const label = titleFrame?.children.find(isLabel)
+    // 화면 ID 글자는 묶음의 자식 프레임 아래 몇 단계 안쪽에 있을 수 있다
+    // (예: 묶음 > Frame 1739347706 > Frame > [HL-02-86]). 깊이 4 까지 찾는다.
+    const findLabel = (n, depth) => {
+      for (const c of n.children ?? []) {
+        if (isLabel(c)) return c
+        if (depth > 0 && c.tag !== "text") {
+          const r = findLabel(c, depth - 1)
+          if (r) return r
+        }
+      }
+    }
+    const titleFrame = g.children.find(
+      (c) => c.tag !== "text" && findLabel(c, 3),
+    )
+    const label = titleFrame && findLabel(titleFrame, 3)
     return {
       ...G,
       label: label?.name,
@@ -102,70 +117,88 @@ const groups = sec.children
       areas: g.children.flatMap((c) => {
         // metadata 의 x, y 는 부모 기준이다
         const C = abs(c, G.ax, G.ay)
-        // 2단계(영역): 텍스트가 아닌 자식이 있으면 그 자식들(화면 이미지·주석 패널), 없으면 자신
+        // 2단계(영역): 텍스트가 아닌 자식이 있으면 그 자식들(화면 이미지, 주석 패널), 없으면 자신.
+        // parentId 는 묶음 바로 아래 프레임 ID 다(제목 영역 판정에 쓴다)
         const kids = (c.children ?? []).filter((k) => k.tag !== "text")
-        if (!kids.length) return [C]
-        return kids.map((k) => abs(k, C.ax, C.ay))
+        if (!kids.length) return [{ ...C, parentId: c.id }]
+        return kids.map((k) => ({ ...abs(k, C.ax, C.ay), parentId: c.id }))
       }),
     }
   })
 
 // ── 화살표(화면 이동 표시) ───────────────────────────────────────────
-// metadata 의 vector 는 상자(x, y, w, h)만 있어 방향을 모른다. 양 끝점이 들어가는 화면·영역을 ends 로 준다.
-// 가로·세로 선은 양 끝이 분명하다. 대각선은 상자 모서리 두 쌍 중 어느 쪽인지 몰라 certain: false 로 둔다.
-const TOL = 12
-const near = (p, b) =>
-  p.x >= b.ax - TOL &&
-  p.x <= b.ax + b.w + TOL &&
-  p.y >= b.ay - TOL &&
-  p.y <= b.ay + b.h + TOL
+// metadata 의 vector 는 상자(x, y, w, h)만 있어 선 모양과 방향을 모른다.
+// - straight: 가로나 세로 직선. 양 끝이 상자 양쪽 가운데다.
+// - bent: 상자가 넓고 높다. 기획서에서는 대부분 ㄱ자 꺾은선이고, 양 끝은 상자의 마주 보는 모서리 한 쌍이다.
+//   두 쌍(왼쪽 위와 오른쪽 아래, 왼쪽 아래와 오른쪽 위) 중 양 끝이 모두 화면에 닿는 쌍을 고른다.
+// 화살촉은 대상 화면 앞에서 끝나는 경우가 많아(체중 기록 시범에서 약 60pt), 가장 가까운 화면을 NEAR 안에서 찾는다.
+// 방향(출발과 도착)은 이미지로 확인한다. 기획서에서는 출발 쪽에 점이 찍혀 있다.
+const NEAR = 100
+const dist = (p, b) => {
+  const dx = Math.max(b.ax - p.x, 0, p.x - (b.ax + b.w))
+  const dy = Math.max(b.ay - p.y, 0, p.y - (b.ay + b.h))
+  return Math.hypot(dx, dy)
+}
 const whereIs = (p) => {
+  let best = null
   for (const g of groups) {
-    if (!near(p, g)) continue
-    const a = g.areas.find((x) => near(p, x))
-    return `${g.label ?? g.name}${a ? ` > ${a.name}` : ""}`
+    const d = dist(p, g)
+    if (d <= NEAR && (!best || d < best.d)) best = { g, d }
   }
-  return null
+  if (!best) return null
+  const g = best.g
+  const a = g.areas
+    .map((x) => ({ x, d: dist(p, x) }))
+    .sort((m, n) => m.d - n.d)[0]
+  return `${g.label ?? g.name}${a && a.d <= NEAR ? ` > ${a.x.name}` : ""}`
 }
 const arrows = []
 const walkVec = (n, ox, oy) => {
   for (const c of n.children ?? []) {
     const C = abs(c, ox, oy)
     if (c.tag === "vector" && Math.max(c.w, c.h) > 40) {
-      const flat = Math.min(c.w, c.h) < 4
-      const pairs = flat
+      const straight = Math.min(c.w, c.h) < 4
+      const L = C.ax,
+        T = C.ay,
+        R = C.ax + c.w,
+        B = C.ay + c.h
+      const pairs = straight
         ? [
             c.w >= c.h
               ? [
-                  { x: C.ax, y: C.ay + c.h / 2 },
-                  { x: C.ax + c.w, y: C.ay + c.h / 2 },
+                  { x: L, y: T + c.h / 2 },
+                  { x: R, y: T + c.h / 2 },
                 ]
               : [
-                  { x: C.ax + c.w / 2, y: C.ay },
-                  { x: C.ax + c.w / 2, y: C.ay + c.h },
+                  { x: L + c.w / 2, y: T },
+                  { x: L + c.w / 2, y: B },
                 ],
           ]
         : [
             [
-              { x: C.ax, y: C.ay },
-              { x: C.ax + c.w, y: C.ay + c.h },
+              { x: L, y: T },
+              { x: R, y: B },
             ],
             [
-              { x: C.ax, y: C.ay + c.h },
-              { x: C.ax + c.w, y: C.ay },
+              { x: L, y: B },
+              { x: R, y: T },
             ],
           ]
+      const ends = pairs.map((pr) => pr.map(whereIs))
+      // 양 끝이 모두 서로 다른 화면에 닿는 쌍만 후보로 남긴다. 하나만 남으면 확정이다
+      const uniq = [
+        ...new Map(ends.map((e) => [JSON.stringify(e), e])).values(),
+      ]
+      const ok = uniq.filter(
+        ([a, b]) => a && b && a.split(" > ")[0] !== b.split(" > ")[0],
+      )
       arrows.push({
         id: c.id,
         name: c.name,
-        box: [
-          Math.round(C.ax),
-          Math.round(C.ay),
-          Math.round(c.w),
-          Math.round(c.h),
-        ],
-        certain: flat,
-        ends: pairs.map((pr) => pr.map(whereIs)),
+        box: [Math.round(L), Math.round(T), Math.round(c.w), Math.round(c.h)],
+        shape: straight ? "straight" : "bent",
+        resolved: ok.length === 1,
+        ends: ok.length ? ok : uniq,
       })
     }
     if (c.tag !== "vector") walkVec(c, C.ax, C.ay)
@@ -208,6 +241,7 @@ const out = groups.map((g) => ({
   image: undefined,
   areas: g.areas.map((a) => ({
     id: a.id,
+    parentId: a.parentId,
     name: a.name,
     box: [Math.round(a.ax), Math.round(a.ay), a.w, a.h],
     lines: [],
@@ -256,10 +290,11 @@ for (const [i, g] of groups.entries()) {
 for (const [i, o] of out.entries()) {
   if (!o.screen) continue
   const titleId = groups[i].titleId
-  const rest = o.areas.filter((a) => a.id !== titleId)
+  const isTitle = (a) => a.id === titleId || a.parentId === titleId
+  const rest = o.areas.filter((a) => !isTitle(a))
   const leftX = Math.min(...rest.map((a) => a.box[0]))
   for (const a of o.areas)
-    a.kind = a.id === titleId ? "제목" : a.box[0] === leftX ? "시안" : "주석"
+    a.kind = isTitle(a) ? "제목" : a.box[0] === leftX ? "시안" : "주석"
 }
 out.push(outside)
 writeFileSync(join(dir, "frames.json"), JSON.stringify(out, null, 2))
@@ -271,13 +306,18 @@ console.log(
   `✅ ${join(dir, "frames.json")}  (섹션: ${sec.name}, 글자 줄 ${lines.length}개)`,
 )
 const screens = out.filter((o) => o.screen)
+const suspicious = out.filter((o) => o.id && !o.screen && count(o) >= 30)
 console.log(
   `   화면 ${screens.length}개 (화면이 아닌 묶음 ${out.length - 1 - screens.length}개)`,
 )
+if (suspicious.length)
+  console.log(
+    `⚠️  화면 ID 를 찾지 못했는데 글자가 많은 묶음 ${suspicious.length}개: ${suspicious.map((o) => o.name).join(", ")}. metadata.xml 에서 화면 ID 위치를 확인한다`,
+  )
 for (const o of out)
   console.log(
     `   ${o.screen ? "" : "(화면 아님) "}${o.label ?? o.name}: ${count(o)}줄`,
   )
 console.log(
-  `✅ ${join(dir, "arrows.json")}  (화살표 ${arrows.length}개, 방향 모름. 대각선 ${arrows.filter((a) => !a.certain).length}개는 끝점 후보 2쌍)`,
+  `✅ ${join(dir, "arrows.json")}  (화살표 ${arrows.length}개, 양 끝 확정 ${arrows.filter((a) => a.resolved).length}개. 방향은 이미지로 확인)`,
 )
